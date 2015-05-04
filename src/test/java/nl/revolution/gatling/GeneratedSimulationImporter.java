@@ -12,9 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GeneratedSimulationImporter {
-    public static void main(String... args) throws IOException {
-        new GeneratedSimulationImporter().performImport();
-    }
 
     public static final String PROJECT_BASE_DIR = "/Users/bertjan/IdeaProjects/sandbox/gatling-har-import";
     public static final String RECORDER_BASE_DIR = "/Users/bertjan/Downloads/gatling/gatling-charts-highcharts-bundle-2.1.5";
@@ -23,8 +20,11 @@ public class GeneratedSimulationImporter {
     public static final String REQUEST_BODIES_TARGET_PATH = PROJECT_BASE_DIR + "/src/test/resources/request-bodies";
     public static final String SIMULATION_OUTPUT_PATH = PROJECT_BASE_DIR + "/src/test/scala/simulations/RecordedSimulation.scala";
 
-    public void performImport() throws IOException {
+    public static void main(String... args) throws IOException {
+        new GeneratedSimulationImporter().performImport();
+    }
 
+    public void performImport() throws IOException {
         cleanOldData();
         processNewData();
 
@@ -32,6 +32,9 @@ public class GeneratedSimulationImporter {
     }
 
 
+    /**
+     * Performs cleanup of old simulation data.
+     */
     private void cleanOldData() throws IOException {
         // Step 1: delete request bodies.
         System.out.println("Deleting old request bodies.");
@@ -55,6 +58,10 @@ public class GeneratedSimulationImporter {
         }
     }
 
+
+    /**
+     * Copies and processes new simulation data.
+     */
     private void processNewData() throws IOException {
         // Step 3: copy request bodies
         System.out.println("Copying new request bodies.");
