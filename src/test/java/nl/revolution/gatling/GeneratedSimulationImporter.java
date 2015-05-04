@@ -28,7 +28,7 @@ public class GeneratedSimulationImporter {
         cleanOldData();
         processNewData();
 
-        System.out.println("done.");
+        System.out.println("Done.");
     }
 
 
@@ -80,7 +80,10 @@ public class GeneratedSimulationImporter {
         System.out.println("Processing generated simulation.");
         List<String> inputLines = Files.readAllLines(Paths.get(SIMULATION_INPUT_PATH));
         List<String> outputLines = new ArrayList<>();
-        inputLines.stream().forEach(line -> {
+
+        int index = 0;
+        int dtdlLoginIndex = 0;
+        for (String line : inputLines) {
 
             // Replace hard-coded xsrf tokens with dummy headers.
             if (line.contains("\"x-xsrf-token\" -> ")) {
@@ -97,25 +100,41 @@ public class GeneratedSimulationImporter {
                 line = line.replaceAll(".post((.)*)", "$0.header(\"x-xsrf-token\", session => session(\"xsrf-token\").as[String]).header(\"Content-Type\", \"application/json\")");
             }
 
-            // Insert xsrf token detector before request_2 -> TODO: make this robust.
-            if (line.contains(".exec(http(\"request_2\")")) {
-                // add xsrf token
-                outputLines.add(".exec(session => {");
-                outputLines.add("import io.gatling.http.cookie._");
-                outputLines.add("session(\"gatling.http.cookies\").validate[CookieJar].map {");
-                outputLines.add("cookieJar =>");
-                outputLines.add("session.set(\"xsrf-token\", cookieJar.store.get(CookieKey(\"xsrf-token\", \"p3.tst.malmberg.nl\", \"/\")).orNull.cookie.getValue)");
-                outputLines.add("}");
-                outputLines.add("})");
+            // Keep line number of dtdl login request.
+            if (line.contains("\"/dtdl/login")) {
+                dtdlLoginIndex = index;
             }
 
-            // Remove generic auth & content-type hedaers and connection keepalive.
+            // Set request name based on HTTP method and URI.
+            if (line.contains("http(\"request_")) {
+                String nextLine = inputLines.get(index + 1);
+                String method = nextLine.split("\\.")[1].split("\\(")[0];
+                String uri = nextLine.split("\"")[1];
+                line = line.replaceAll("\"request_(.)+\"", "\"" + method.toUpperCase() + " " + uri + "\"");
+            }
+
+            // Remove generic auth & content-type headersd and connection keepalive.
             if (!line.contains(".authorizationHeader(\"")
                     && !line.contains(".contentTypeHeader(\"")
-                    && !line.contains(".connection(\"")) {
+                    && !line.contains(".connection(\"")
+                    && !line.contains("\"cdn.mathjax.org\"")
+                    && !line.contains("\"www.google-analytics.com\"")) {
                 outputLines.add(line);
             }
-        });
+
+            // Insert xsrf-token processing after pause statement when /dtdl/login has been processed.
+            if (dtdlLoginIndex > 0 && line.contains("pause") && (index-dtdlLoginIndex < 4)) {
+                // add xsrf token
+                outputLines.add("\t\t.exec(session => {");
+                outputLines.add("\t\t\timport io.gatling.http.cookie._");
+                outputLines.add("\t\t\tsession(\"gatling.http.cookies\").validate[CookieJar].map {");
+                outputLines.add("\t\t\t\tcookieJar => session.set(\"xsrf-token\", cookieJar.store.get(CookieKey(\"xsrf-token\", \"p3.tst.malmberg.nl\", \"/\")).orNull.cookie.getValue)");
+                outputLines.add("\t\t\t}");
+                outputLines.add("\t\t})");
+            }
+
+            index++;
+        };
 
         // Write changed file to disk
         Files.write(Paths.get(SIMULATION_OUTPUT_PATH), outputLines);
