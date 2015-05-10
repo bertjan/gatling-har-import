@@ -113,6 +113,28 @@ public class GeneratedSimulationImporter {
                 line = line.replaceAll("\"request_(.)+\"", "\"" + method.toUpperCase() + " " + uri + "\"");
             }
 
+
+            // Insert feeder before http protocol definition.
+            if (line.contains("val httpProtocol")) {
+                outputLines.add("\tval userFeeder = csv(\"users.csv\")\n");
+            }
+
+            // Insert call to feeder before login request.
+            if (line.contains("exec(http(\"GET /dtdl/login")) {
+                outputLines.add("\t\t.feed(userFeeder)");
+            }
+
+            // Generify DTDL login step name.
+            if (line.contains("GET /dtdl/login?username=")) {
+                line = line.replaceAll("/dtdl/login\\?username=(.)*&role=(.)*\"\\)", "/dtdl/login\"\\)");
+            }
+
+            // Feed username/role from feeder.
+            if (line.contains(".get(") && line.contains("\"/dtdl/login?username=")) {
+                line = line.replaceAll("/dtdl/login\\?username=(.)*&role=(.)*\"\\)",
+                                        "/dtdl/login\\?username=\\$\\{userid\\}&role=\\$\\{role\\}\"\\)");
+            }
+
             // Remove generic auth & content-type headersd and connection keepalive.
             if (!line.contains(".authorizationHeader(\"")
                     && !line.contains(".contentTypeHeader(\"")
